@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Copy, Check, AlertCircle } from 'lucide-react'
 import type { ChatMessage } from '@/lib/api'
+import { useLang } from '@/lib/LanguageContext'
+import { translations } from '@/lib/i18n'
 import ToolCallBadge from './ToolCallBadge'
 import IndicatorCard from './IndicatorCard'
 
@@ -87,6 +89,8 @@ function Timestamp({ iso }: { iso: string }) {
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
+  const { lang } = useLang()
+  const tr = translations[lang]
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(text)
@@ -97,7 +101,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      aria-label="Copier le message"
+      aria-label={tr.copyAriaLabel}
       className="p-1 rounded hover:bg-surface2 text-muted hover:text-[#F5F5F5] transition-all duration-150 opacity-0 group-hover:opacity-100"
     >
       {copied

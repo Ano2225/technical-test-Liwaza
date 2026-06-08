@@ -1,12 +1,6 @@
-/**
- * Formats a World Bank numeric value for display.
- * Unit is inferred from the indicator name so no extra parameter is needed:
- * - keywords like "rate", "enrollment", "%" → percentage (1 decimal)
- * - "life expectancy", "years"              → years in French ("ans")
- * - large USD amounts                       → human-readable scale (M, Mrd, T)
- * - everything else                         → fr-FR locale number
- */
-export function formatValue(value: number, indicatorName: string): string {
+import type { Lang } from './i18n'
+
+export function formatValue(value: number, indicatorName: string, lang: Lang = 'fr'): string {
   const name = indicatorName.toLowerCase()
   const isPercent =
     name.includes('%') ||
@@ -18,19 +12,13 @@ export function formatValue(value: number, indicatorName: string): string {
   const isYears = name.includes('life expectancy') || name.includes('years')
 
   if (isPercent) return `${value.toFixed(1)} %`
-  if (isYears) return `${value.toFixed(1)} ans`
+  if (isYears)   return `${value.toFixed(1)} ${lang === 'fr' ? 'ans' : 'yrs'}`
   if (value >= 1e12) return `${(value / 1e12).toFixed(2)} T USD`
-  if (value >= 1e9) return `${(value / 1e9).toFixed(1)} Mrd USD`
-  if (value >= 1e6) return `${(value / 1e6).toFixed(1)} M USD`
-  return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value)
+  if (value >= 1e9)  return `${(value / 1e9).toFixed(1)} ${lang === 'fr' ? 'Mrd' : 'B'} USD`
+  if (value >= 1e6)  return `${(value / 1e6).toFixed(1)} M USD`
+  return new Intl.NumberFormat(lang === 'fr' ? 'fr-FR' : 'en-US', { maximumFractionDigits: 2 }).format(value)
 }
 
-/**
- * Computes the percentage change between the two most recent non-null data points.
- * World Bank data is ordered newest-first, so valid[0] is latest and valid[1] is previous.
- * Returns null when there is not enough data or the previous value is zero (avoid division by zero).
- * A change within ±0.5% is treated as flat to avoid noise on near-stable indicators.
- */
 export function calcTrend(
   data: Array<{ value: number | null }>,
 ): { pct: number; dir: 'up' | 'down' | 'flat' } | null {

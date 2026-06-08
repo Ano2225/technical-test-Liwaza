@@ -1,5 +1,10 @@
+import { LanguageProvider } from '@/lib/LanguageContext'
 import Chat from '@/components/Chat'
 
 export default function App() {
-  return <Chat />
+  return (
+    <LanguageProvider>
+      <Chat />
+    </LanguageProvider>
+  )
 }

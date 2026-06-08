@@ -1,6 +1,8 @@
 import { TrendingUp, TrendingDown, Minus, Globe, Search } from 'lucide-react'
 import type { ToolData, TimeSeriesData, CountryProfileData, SearchResultData } from '@/lib/api'
 import { formatValue, calcTrend } from '@/lib/formatters'
+import { useLang } from '@/lib/LanguageContext'
+import { translations } from '@/lib/i18n'
 import DataCard from './ui/DataCard'
 import Sparkline from './ui/Sparkline'
 
@@ -9,14 +11,14 @@ interface Props {
   toolName?: string
 }
 
-// ── Sub-cards ─────────────────────────────────────────────────────────────────
-
 function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
+  const { lang } = useLang()
+  const tr = translations[lang]
   const latest = data.data.find((d) => d.value !== null)
   if (!latest) return null
 
   const trend = calcTrend(data.data)
-  const TrendIcon = trend?.dir === 'up' ? TrendingUp : trend?.dir === 'down' ? TrendingDown : Minus
+  const TrendIcon  = trend?.dir === 'up' ? TrendingUp : trend?.dir === 'down' ? TrendingDown : Minus
   const trendColor = trend?.dir === 'up' ? 'text-green-ci' : trend?.dir === 'down' ? 'text-red-400' : 'text-muted'
 
   return (
@@ -27,9 +29,9 @@ function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
       <div className="flex items-end justify-between mt-3">
         <div>
           <p className="text-lg sm:text-2xl font-semibold text-[#F5F5F5]">
-            {formatValue(latest.value as number, data.indicator.name)}
+            {formatValue(latest.value as number, data.indicator.name, lang)}
           </p>
-          <p className="text-xs text-muted mt-0.5">Données {latest.year}</p>
+          <p className="text-xs text-muted mt-0.5">{tr.dataYear(latest.year)}</p>
         </div>
         {trend && (
           <div className={`flex items-center gap-1 ${trendColor} text-xs font-medium`}>
@@ -49,12 +51,16 @@ function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
 }
 
 function CountryCard({ data }: { data: CountryProfileData }) {
+  const { lang } = useLang()
+  const { countryLabels } = translations[lang]
+
   const rows = [
-    { label: 'Capitale',          value: data.capital_city },
-    { label: 'Région',            value: data.region },
-    { label: 'Niveau de revenu',  value: data.income_level },
-    { label: 'Code ISO',          value: data.id },
+    { label: countryLabels.capital, value: data.capital_city },
+    { label: countryLabels.region,  value: data.region },
+    { label: countryLabels.income,  value: data.income_level },
+    { label: countryLabels.iso,     value: data.id },
   ]
+
   return (
     <DataCard>
       <p className="font-semibold text-[#F5F5F5] text-base mb-3 flex items-center gap-2">
@@ -74,11 +80,14 @@ function CountryCard({ data }: { data: CountryProfileData }) {
 }
 
 function SearchCard({ data }: { data: SearchResultData }) {
+  const { lang } = useLang()
+  const tr = translations[lang]
+
   return (
     <DataCard>
       <p className="text-muted text-xs mb-2 flex items-center gap-1.5">
         <Search size={11} />
-        {new Intl.NumberFormat('fr-FR').format(data.total)} indicateurs trouvés
+        {tr.indicatorsFound(data.total)}
       </p>
       <div className="space-y-2">
         {data.indicators.slice(0, 5).map((ind) => (
@@ -92,8 +101,6 @@ function SearchCard({ data }: { data: SearchResultData }) {
   )
 }
 
-// ── Type guards ───────────────────────────────────────────────────────────────
-
 function isTimeSeries(d: ToolData): d is TimeSeriesData {
   return 'indicator' in d && 'data' in d && Array.isArray((d as TimeSeriesData).data)
 }
@@ -103,8 +110,6 @@ function isCountryProfile(d: ToolData): d is CountryProfileData {
 function isSearchResult(d: ToolData): d is SearchResultData {
   return 'indicators' in d && Array.isArray((d as SearchResultData).indicators)
 }
-
-// ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function IndicatorCard({ data }: Props) {
   if (!data || 'error' in data) return null

@@ -2,31 +2,28 @@ import { useState } from 'react'
 import { Globe, Search, BarChart2, GraduationCap, HeartPulse, Settings, ChevronDown, ChevronUp } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ToolCallRecord } from '@/lib/api'
+import { useLang } from '@/lib/LanguageContext'
+import { translations } from '@/lib/i18n'
 
 interface Props {
   call: ToolCallRecord
 }
 
-const TOOL_META: Record<string, { Icon: LucideIcon; label: string; description: string }> = {
-  get_country_profile:      { Icon: Globe,         label: 'Profil du pays',             description: 'Informations générales sur la Côte d\'Ivoire' },
-  search_indicators:        { Icon: Search,        label: 'Recherche indicateurs',      description: 'Recherche dans la base World Bank' },
-  get_economic_indicators:  { Icon: BarChart2,     label: 'Indicateurs économiques',    description: 'PIB, inflation, commerce, budget' },
-  get_education_indicators: { Icon: GraduationCap, label: 'Indicateurs éducation',      description: 'Scolarisation, alphabétisation' },
-  get_health_indicators:    { Icon: HeartPulse,    label: 'Indicateurs santé',          description: 'Mortalité, espérance de vie, maladies' },
-}
-
-const PARAM_LABELS: Record<string, string> = {
-  indicator_id: 'Indicateur',
-  country_code: 'Pays',
-  keyword:      'Recherche',
-  per_page:     'Résultats',
-  page:         'Page',
+const TOOL_ICONS: Record<string, LucideIcon> = {
+  get_country_profile:      Globe,
+  search_indicators:        Search,
+  get_economic_indicators:  BarChart2,
+  get_education_indicators: GraduationCap,
+  get_health_indicators:    HeartPulse,
 }
 
 export default function ToolCallBadge({ call }: Props) {
   const [open, setOpen] = useState(false)
-  const meta = TOOL_META[call.tool] ?? { Icon: Settings, label: call.tool, description: '' }
-  const { Icon, label } = meta
+  const { lang } = useLang()
+  const tr = translations[lang]
+
+  const Icon     = TOOL_ICONS[call.tool] ?? Settings
+  const label    = tr.toolNames[call.tool] ?? call.tool
   const hasError = call.result && 'error' in call.result
 
   const inputEntries = Object.entries(call.input).filter(
@@ -55,13 +52,13 @@ export default function ToolCallBadge({ call }: Props) {
           {inputEntries.length > 0 && (
             <div>
               <p className="text-[10px] uppercase tracking-widest text-muted mb-1.5 font-medium">
-                Paramètres
+                {tr.paramsHeading}
               </p>
               <div className="space-y-1">
                 {inputEntries.map(([k, v]) => (
                   <div key={k} className="flex items-baseline gap-2">
                     <span className="text-muted shrink-0 w-20">
-                      {PARAM_LABELS[k] ?? k}
+                      {tr.paramLabels[k] ?? k}
                     </span>
                     <code className="text-gold font-mono text-[11px] break-all">{String(v)}</code>
                   </div>
@@ -73,7 +70,7 @@ export default function ToolCallBadge({ call }: Props) {
           {hasError && (
             <div>
               <p className="text-[10px] uppercase tracking-widest text-muted mb-1.5 font-medium">
-                Erreur
+                {tr.errorHeading}
               </p>
               <code className="text-red-400 font-mono text-[11px]">
                 {(call.result as { error: string }).error}
@@ -82,7 +79,7 @@ export default function ToolCallBadge({ call }: Props) {
           )}
 
           {!hasError && !inputEntries.length && (
-            <p className="text-muted text-[11px]">Aucun paramètre</p>
+            <p className="text-muted text-[11px]">{tr.noParams}</p>
           )}
         </div>
       )}
