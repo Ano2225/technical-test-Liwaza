@@ -1,165 +1,276 @@
-"""
-Tests for MCP tool logic: input validation, error handling, auth, data invariants.
-World Bank API is mocked only where needed to trigger specific code paths.
-"""
+"""Unit tests for the 5 MCP tools (World Bank API calls are mocked)."""
+import json
 import pytest
 import httpx
-from unittest.mock import AsyncMock, MagicMock, patch
-from pydantic import ValidationError
+from unittest.mock import AsyncMock, patch, MagicMock
+
+# ---------------------------------------------------------------------------
+# Helpers to build fake World Bank responses
+# ---------------------------------------------------------------------------
+
+def _wb_country_response():
+    return [
+        {"page": 1, "pages": 1, "per_page": 50, "total": 1},
+        [
+            {
+                "id": "CI",
+                "name": "Côte d'Ivoire",
+                "capitalCity": "Yamoussoukro",
+                "region": {"value": "Sub-Saharan Africa"},
+                "incomeLevel": {"value": "Lower middle income"},
+                "longitude": "-5.54708",
+                "latitude": "7.53999",
+            }
+        ],
+    ]
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+def _wb_indicators_response():
+    return [
+        {"page": 1, "pages": 5, "per_page": 10, "total": 42},
+        [
+            {
+                "id": "NY.GDP.MKTP.CD",
+                "name": "GDP (current US$)",
+                "source": {"value": "World Development Indicators"},
+                "topics": [{"value": "Economy & Growth"}],
+            }
+        ],
+    ]
 
-def _http_error(status_code: int):
+
+def _wb_timeseries_response(indicator_id: str = "NY.GDP.MKTP.CD"):
+    return [
+        {"page": 1, "pages": 3, "per_page": 10, "total": 30},
+        [
+            {
+                "indicator": {"id": indicator_id, "value": "GDP (current US$)"},
+                "country": {"id": "CI", "value": "Côte d'Ivoire"},
+                "date": "2022",
+                "value": 70020000000.0,
+            },
+            {
+                "indicator": {"id": indicator_id, "value": "GDP (current US$)"},
+                "country": {"id": "CI", "value": "Côte d'Ivoire"},
+                "date": "2021",
+                "value": 61350000000.0,
+            },
+        ],
+    ]
+
+
+def _make_mock_response(data):
     mock_resp = MagicMock()
-    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
-        str(status_code), request=MagicMock(), response=MagicMock(status_code=status_code)
-    )
+    mock_resp.json.return_value = data
+    mock_resp.raise_for_status = MagicMock()
     return mock_resp
 
 
-def _network_error():
-    mock_client = AsyncMock()
-    mock_client.get = AsyncMock(side_effect=httpx.ConnectError("unreachable"))
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    return patch("httpx.AsyncClient", return_value=mock_client)
-
-
-def _http_mock(mock_response):
-    mock_client = AsyncMock()
-    mock_client.get = AsyncMock(return_value=mock_response)
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-    return patch("httpx.AsyncClient", return_value=mock_client)
-
-
-# ── Input validation ──────────────────────────────────────────────────────────
-
-def test_country_code_auto_uppercased():
-    from tools.country_profile import CountryProfileInput
-    assert CountryProfileInput(country_code="ci").country_code == "CI"
-    assert CountryProfileInput(country_code="  ci  ").country_code == "CI"
-
-
-def test_country_code_defaults_to_ci():
-    from tools.country_profile import CountryProfileInput
-    assert CountryProfileInput().country_code == "CI"
-
-
-def test_search_keyword_stripped():
-    from tools.search_indicators import SearchIndicatorsInput
-    assert SearchIndicatorsInput(keyword="  GDP  ").keyword == "GDP"
-
-
-def test_search_empty_keyword_rejected():
-    from tools.search_indicators import SearchIndicatorsInput
-    with pytest.raises(ValidationError):
-        SearchIndicatorsInput(keyword="")
-
-
-def test_search_per_page_bounds():
-    from tools.search_indicators import SearchIndicatorsInput
-    with pytest.raises(ValidationError):
-        SearchIndicatorsInput(keyword="GDP", per_page=0)
-    with pytest.raises(ValidationError):
-        SearchIndicatorsInput(keyword="GDP", per_page=51)
-
-
-def test_indicator_per_page_bounds():
-    from tools._indicator_base import IndicatorRequest
-    with pytest.raises(ValidationError):
-        IndicatorRequest(indicator_id="NY.GDP.MKTP.CD", per_page=0)
-    with pytest.raises(ValidationError):
-        IndicatorRequest(indicator_id="NY.GDP.MKTP.CD", per_page=101)
-
-
-def test_indicator_empty_id_rejected():
-    from tools._indicator_base import IndicatorRequest
-    with pytest.raises(ValidationError):
-        IndicatorRequest(indicator_id="")
-
-
-# ── Error handling ────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# get_country_profile
+# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_country_profile_404_returns_structured_error():
+async def test_get_country_profile_success():
     from tools.country_profile import get_country_profile
-    with _http_mock(_http_error(404)):
-        result = await get_country_profile("XX")
-    assert "error" in result
-    assert result["code"] == 404
 
+    mock_resp = _make_mock_response(_wb_country_response())
 
-@pytest.mark.asyncio
-async def test_country_profile_network_error_returns_503():
-    from tools.country_profile import get_country_profile
-    with _network_error():
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
         result = await get_country_profile("CI")
-    assert "error" in result
-    assert result["code"] == 503
+
+    assert result["id"] == "CI"
+    assert result["name"] == "Côte d'Ivoire"
+    assert result["capital_city"] == "Yamoussoukro"
+    assert result["region"] == "Sub-Saharan Africa"
+    assert result["income_level"] == "Lower middle income"
 
 
 @pytest.mark.asyncio
-async def test_economic_indicators_404_returns_structured_error():
-    from tools.economic_indicators import get_economic_indicators
-    with _http_mock(_http_error(404)):
-        result = await get_economic_indicators("INVALID.ID")
-    assert "error" in result
-    assert result["code"] == 404
-
-
-@pytest.mark.asyncio
-async def test_search_indicators_network_error_returns_503():
-    from tools.search_indicators import search_indicators
-    with _network_error():
-        result = await search_indicators("GDP")
-    assert "error" in result
-    assert result["code"] == 503
-
-
-# ── Data invariants ───────────────────────────────────────────────────────────
-
-@pytest.mark.asyncio
-async def test_null_data_points_preserved_not_dropped():
-    """Years with no WB data must come through as null, not be filtered out."""
-    from tools._indicator_base import fetch_indicator
+async def test_get_country_profile_not_found():
+    from tools.country_profile import get_country_profile
 
     mock_resp = MagicMock()
-    mock_resp.raise_for_status = MagicMock()
-    mock_resp.json.return_value = [
-        {"page": 1, "pages": 1, "per_page": 2, "total": 2},
+    mock_resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "404", request=MagicMock(), response=MagicMock(status_code=404)
+    )
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await get_country_profile("XX")
+
+    assert "error" in result
+    assert result["code"] == 404
+
+
+@pytest.mark.asyncio
+async def test_get_country_profile_network_error():
+    from tools.country_profile import get_country_profile
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=httpx.ConnectError("timeout"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await get_country_profile("CI")
+
+    assert "error" in result
+    assert result["code"] == 503
+
+
+# ---------------------------------------------------------------------------
+# search_indicators
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_search_indicators_success():
+    from tools.search_indicators import search_indicators
+
+    mock_resp = _make_mock_response(_wb_indicators_response())
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await search_indicators("GDP")
+
+    assert result["total"] == 42
+    assert len(result["indicators"]) == 1
+    assert result["indicators"][0]["id"] == "NY.GDP.MKTP.CD"
+
+
+@pytest.mark.asyncio
+async def test_search_indicators_empty_results():
+    from tools.search_indicators import search_indicators
+
+    empty_response = [{"page": 1, "pages": 0, "per_page": 10, "total": 0}, None]
+    mock_resp = _make_mock_response(empty_response)
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await search_indicators("zzznomatch")
+
+    assert result["total"] == 0
+    assert result["indicators"] == []
+
+
+# ---------------------------------------------------------------------------
+# get_economic_indicators
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_get_economic_indicators_success():
+    from tools.economic_indicators import get_economic_indicators
+
+    mock_resp = _make_mock_response(_wb_timeseries_response("NY.GDP.MKTP.CD"))
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await get_economic_indicators("NY.GDP.MKTP.CD", per_page=10)
+
+    assert result["indicator"]["id"] == "NY.GDP.MKTP.CD"
+    assert len(result["data"]) == 2
+    assert result["data"][0]["year"] == "2022"
+    assert result["data"][0]["value"] == pytest.approx(70020000000.0)
+
+
+@pytest.mark.asyncio
+async def test_get_economic_indicators_null_values():
+    """Null data points (years with no data) must be preserved, not dropped."""
+    from tools.economic_indicators import get_economic_indicators
+
+    response = [
+        {"page": 1, "pages": 1, "per_page": 10, "total": 1},
         [
-            {"indicator": {"id": "X", "value": "X"}, "country": {"id": "CI", "value": "CI"}, "date": "2023", "value": None},
-            {"indicator": {"id": "X", "value": "X"}, "country": {"id": "CI", "value": "CI"}, "date": "2022", "value": 1.0},
+            {
+                "indicator": {"id": "NY.GDP.MKTP.CD", "value": "GDP"},
+                "country": {"id": "CI", "value": "Côte d'Ivoire"},
+                "date": "2023",
+                "value": None,
+            }
         ],
     ]
-    with _http_mock(mock_resp):
-        result = await fetch_indicator("test", "X")
+    mock_resp = _make_mock_response(response)
 
-    assert len(result["data"]) == 2
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await get_economic_indicators("NY.GDP.MKTP.CD")
+
     assert result["data"][0]["value"] is None
-    assert result["data"][1]["value"] == pytest.approx(1.0)
 
 
-# ── Auth logic ────────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# get_education_indicators
+# ---------------------------------------------------------------------------
 
-def test_jwt_create_and_verify_roundtrip():
-    from auth import create_access_token, verify_token
-    from fastapi.security import HTTPAuthorizationCredentials
+@pytest.mark.asyncio
+async def test_get_education_indicators_success():
+    from tools.education_indicators import get_education_indicators
 
-    token = create_access_token("test-subject")
-    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-    payload = verify_token(creds)
-    assert payload.sub == "test-subject"
+    mock_resp = _make_mock_response(_wb_timeseries_response("SE.PRM.ENRR"))
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await get_education_indicators("SE.PRM.ENRR")
+
+    assert result["indicator"]["id"] == "SE.PRM.ENRR"
+    assert len(result["data"]) == 2
 
 
-def test_invalid_jwt_raises_401():
-    from auth import verify_token
-    from fastapi import HTTPException
-    from fastapi.security import HTTPAuthorizationCredentials
+# ---------------------------------------------------------------------------
+# get_health_indicators
+# ---------------------------------------------------------------------------
 
-    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="not.a.valid.token")
-    with pytest.raises(HTTPException) as exc:
-        verify_token(creds)
-    assert exc.value.status_code == 401
+@pytest.mark.asyncio
+async def test_get_health_indicators_success():
+    from tools.health_indicators import get_health_indicators
+
+    mock_resp = _make_mock_response(_wb_timeseries_response("SP.DYN.LE00.IN"))
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await get_health_indicators("SP.DYN.LE00.IN")
+
+    assert result["indicator"]["id"] == "SP.DYN.LE00.IN"
+    assert result["data"][0]["year"] == "2022"

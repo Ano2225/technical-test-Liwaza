@@ -65,6 +65,16 @@ function Sparkline({ dataPoints }: { dataPoints: Array<{ value: number | null }>
   )
 }
 
+// ── Shared card shell ─────────────────────────────────────────────────────────
+
+function DataCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mt-3 rounded-card border-l-2 border-gold bg-surface2 p-4 text-sm animate-fade-up">
+      {children}
+    </div>
+  )
+}
+
 // ── Sub-cards ─────────────────────────────────────────────────────────────────
 
 function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
@@ -76,7 +86,7 @@ function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
   const trendColor = trend?.dir === 'up' ? 'text-green-ci' : trend?.dir === 'down' ? 'text-red-400' : 'text-muted'
 
   return (
-    <div className="mt-3 rounded-card border-l-2 border-gold bg-surface2 p-4 text-sm animate-fade-up">
+    <DataCard>
       <p className="text-muted text-xs mb-1">{data.indicator.country}</p>
       <p className="font-medium text-[#F5F5F5] leading-snug">{data.indicator.name}</p>
 
@@ -104,7 +114,7 @@ function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
           <Sparkline dataPoints={data.data} />
         </div>
       )}
-    </div>
+    </DataCard>
   )
 }
 
@@ -116,7 +126,7 @@ function CountryCard({ data }: { data: CountryProfileData }) {
     { label: 'Code ISO', value: data.id },
   ]
   return (
-    <div className="mt-3 rounded-card border-l-2 border-gold bg-surface2 p-4 text-sm animate-fade-up">
+    <DataCard>
       <p className="font-semibold text-[#F5F5F5] text-base mb-3 flex items-center gap-2">
         <Globe size={15} className="text-gold shrink-0" />
         {data.name}
@@ -129,13 +139,13 @@ function CountryCard({ data }: { data: CountryProfileData }) {
           </div>
         ))}
       </div>
-    </div>
+    </DataCard>
   )
 }
 
 function SearchCard({ data }: { data: SearchResultData }) {
   return (
-    <div className="mt-3 rounded-card border-l-2 border-gold bg-surface2 p-4 text-sm animate-fade-up">
+    <DataCard>
       <p className="text-muted text-xs mb-2 flex items-center gap-1.5">
         <Search size={11} />
         {new Intl.NumberFormat('fr-FR').format(data.total)} indicateurs trouvés
@@ -148,7 +158,7 @@ function SearchCard({ data }: { data: SearchResultData }) {
           </div>
         ))}
       </div>
-    </div>
+    </DataCard>
   )
 }
 

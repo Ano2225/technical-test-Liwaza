@@ -13,6 +13,21 @@ const SUGGESTIONS: { Icon: LucideIcon; text: string }[] = [
   { Icon: BarChart2,  text: 'Taux d\'inflation ces 5 dernières années' },
 ]
 
+// ── Shared ────────────────────────────────────────────────────────────────────
+
+function LogoCircle({ size }: { size: 'sm' | 'lg' }) {
+  const dim = size === 'sm' ? 'w-8 h-8' : 'w-16 h-16'
+  const iconSize = size === 'sm' ? 15 : 28
+  return (
+    <div
+      className={`${dim} rounded-full shrink-0 flex items-center justify-center`}
+      style={{ background: 'linear-gradient(135deg, #F4A201 0%, #009A44 100%)' }}
+    >
+      <Globe size={iconSize} color="#0A0A0A" strokeWidth={1.75} />
+    </div>
+  )
+}
+
 // ── Loading bubble ────────────────────────────────────────────────────────────
 
 function LoadingBubble() {
@@ -36,10 +51,7 @@ function EmptyState({ onSelect }: { onSelect: (text: string) => void }) {
     <div className="flex flex-col items-center justify-center h-full gap-8 px-4 py-16 text-center">
       {/* Logo */}
       <div className="flex flex-col items-center gap-3">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #F4A201 0%, #009A44 100%)' }}>
-          <Globe size={28} color="#0A0A0A" strokeWidth={1.5} />
-        </div>
+        <LogoCircle size="lg" />
         <div>
           <h1 className="font-serif text-3xl text-gold">Ivoire Data</h1>
           <p className="text-muted text-sm mt-1 max-w-xs">
@@ -131,10 +143,7 @@ export default function Chat() {
       {/* ── Header ── */}
       <header className="flex items-center justify-between px-5 h-14 border-b border-border shrink-0 backdrop-blur-sm bg-bg/80 sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center"
-            style={{ background: 'linear-gradient(135deg, #F4A201 0%, #009A44 100%)' }}>
-            <Globe size={15} color="#0A0A0A" strokeWidth={1.75} />
-          </div>
+          <LogoCircle size="sm" />
           <div className="leading-tight">
             <span className="font-serif text-lg text-gold">Ivoire Data</span>
             <p className="text-[10px] text-muted hidden sm:block">Assistant IA pour les données publiques</p>
