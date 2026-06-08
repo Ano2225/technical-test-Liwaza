@@ -1,5 +1,5 @@
 import { TrendingUp, BookOpen, Heart, BarChart2, type LucideIcon } from 'lucide-react'
-import LogoCircle from './LogoCircle'
+import LogoCircle from './ui/LogoCircle'
 
 const SUGGESTIONS: { Icon: LucideIcon; text: string }[] = [
   { Icon: TrendingUp, text: "Quel est le PIB de la Côte d'Ivoire ?" },

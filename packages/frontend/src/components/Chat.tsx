@@ -3,9 +3,9 @@ import { ArrowUp, AlertCircle } from 'lucide-react'
 import { sendMessage, makeUserMessage } from '@/lib/api'
 import type { ChatMessage } from '@/lib/api'
 import ChatBubble from './ChatBubble'
-import LoadingBubble from './LoadingBubble'
+import LoadingBubble from './ui/LoadingBubble'
 import EmptyState from './EmptyState'
-import LogoCircle from './LogoCircle'
+import LogoCircle from './ui/LogoCircle'
 
 export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
