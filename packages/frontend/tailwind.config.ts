@@ -20,7 +20,7 @@ const config: Config = {
       },
       fontFamily: {
         serif: ['"Instrument Serif"', 'Georgia', 'serif'],
-        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+        sans: ['"Inter"', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         card: '12px',
