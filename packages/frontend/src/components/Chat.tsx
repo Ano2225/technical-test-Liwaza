@@ -8,6 +8,7 @@ import ChatBubble from './ChatBubble'
 import LoadingBubble from './ui/LoadingBubble'
 import EmptyState from './EmptyState'
 import HelpModal from './HelpModal'
+import OnboardingModal from './OnboardingModal'
 import LogoCircle from './ui/LogoCircle'
 
 export default function Chat() {
@@ -19,6 +20,9 @@ export default function Chat() {
   const [loading, setLoading]         = useState(false)
   const [loadingStatus, setLoadingStatus] = useState(tr.loadingStatuses[0])
   const [helpOpen, setHelpOpen]       = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(
+    () => !localStorage.getItem('ivoire_onboarded')
+  )
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef    = useRef<HTMLTextAreaElement>(null)
 
@@ -72,6 +76,12 @@ export default function Chat() {
     e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px'
   }
 
+  const handleOnboardingClose = useCallback(() => {
+    localStorage.setItem('ivoire_onboarded', '1')
+    setShowOnboarding(false)
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }, [])
+
   const handleNewConversation = () => {
     setMessages([])
     setInput('')
@@ -82,6 +92,13 @@ export default function Chat() {
 
   return (
     <>
+      {showOnboarding && (
+        <OnboardingModal
+          onClose={handleOnboardingClose}
+          onSelect={(text) => { handleOnboardingClose(); void handleSubmit(text) }}
+        />
+      )}
+
       {helpOpen && (
         <HelpModal
           onClose={() => setHelpOpen(false)}

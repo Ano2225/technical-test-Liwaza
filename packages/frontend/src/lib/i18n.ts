@@ -7,6 +7,12 @@ export interface HelpTool {
   examples: string[]
 }
 
+export interface OnboardingStep2Item {
+  step: 'chat' | 'ai' | 'data'
+  title: string
+  body: string
+}
+
 interface Translations {
   // Header
   appSubtitle: string
@@ -41,6 +47,21 @@ interface Translations {
 
   // Copy button
   copyAriaLabel: string
+
+  // Onboarding
+  onboarding: {
+    step1Title: string
+    step1Body: string
+    step2Title: string
+    step2Items: OnboardingStep2Item[]
+    step3Title: string
+    step3Body: string
+    step3Suggestions: string[]
+    btnNext: string
+    btnBack: string
+    btnStart: string
+    btnSkip: string
+  }
 
   // Help modal
   helpModalTitle: string
@@ -103,6 +124,28 @@ const fr: Translations = {
   },
 
   copyAriaLabel: "Copier le message",
+
+  onboarding: {
+    step1Title: "Bienvenue",
+    step1Body: "Explorez les données publiques de la Côte d'Ivoire en posant des questions en langage naturel. Alimenté par l'API World Bank et Claude AI.",
+    step2Title: "Comment ça fonctionne",
+    step2Items: [
+      { step: 'chat', title: "Posez une question",       body: "En français ou en anglais, demandez n'importe quoi sur la Côte d'Ivoire." },
+      { step: 'ai',   title: "L'IA choisit l'outil",     body: "Claude identifie la bonne source de données World Bank pour vous." },
+      { step: 'data', title: "Obtenez les données réelles", body: "Résultats structurés avec graphiques, tendances et valeurs clés." },
+    ],
+    step3Title: "Prêt à explorer",
+    step3Body: "Voici quelques questions pour commencer :",
+    step3Suggestions: [
+      "Quel est le PIB de la Côte d'Ivoire ?",
+      "Quelle est l'espérance de vie ?",
+      "Taux d'alphabétisation des adultes",
+    ],
+    btnNext:  "Suivant",
+    btnBack:  "Retour",
+    btnStart: "Commencer",
+    btnSkip:  "Passer",
+  },
 
   helpModalTitle:    "Ce que je sais faire",
   helpModalSubtitle: "5 outils · données World Bank · Côte d'Ivoire",
@@ -195,6 +238,28 @@ const en: Translations = {
   },
 
   copyAriaLabel: "Copy message",
+
+  onboarding: {
+    step1Title: "Welcome",
+    step1Body: "Explore public data from Côte d'Ivoire by asking questions in plain language. Powered by the World Bank API and Claude AI.",
+    step2Title: "How it works",
+    step2Items: [
+      { step: 'chat', title: "Ask a question",     body: "In French or English, ask anything about Côte d'Ivoire." },
+      { step: 'ai',   title: "AI selects the tool", body: "Claude identifies the right World Bank dataset for your question." },
+      { step: 'data', title: "Get real data",       body: "Structured results with charts, trends, and key figures." },
+    ],
+    step3Title: "Ready to explore",
+    step3Body: "Here are a few questions to get started:",
+    step3Suggestions: [
+      "What is the GDP of Côte d'Ivoire?",
+      "What is the life expectancy?",
+      "Adult literacy rate",
+    ],
+    btnNext:  "Next",
+    btnBack:  "Back",
+    btnStart: "Get started",
+    btnSkip:  "Skip",
+  },
 
   helpModalTitle:    "What I can do",
   helpModalSubtitle: "5 tools · World Bank data · Côte d'Ivoire",
