@@ -1,10 +1,9 @@
 services:
   - type: web
     name: ivoire-data-backend
-    runtime: python
-    rootDir: packages/mcp-server
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    runtime: docker
+    dockerfilePath: ./packages/mcp-server/Dockerfile
+    dockerContext: ./packages/mcp-server
     healthCheckPath: /health
     envVars:
       - key: ANTHROPIC_API_KEY
@@ -16,4 +15,4 @@ services:
       - key: JWT_EXPIRY_HOURS
         value: 24
       - key: ALLOWED_ORIGINS
-        sync: false          # set to your Vercel URL after frontend deploy
+        value: "*"
