@@ -190,23 +190,8 @@ Claude selects which tool to call automatically based on the user's question.
 
 ### Step 1 — Deploy backend to Render
 
-1. Go to [render.com](https://render.com) → New → Web Service
-2. Connect your GitHub repo (`Ano2225/technical-test-Liwaza`)
-3. Render auto-detects `render.yaml` → click **Apply**
-4. In the service settings, add environment variables:
-   - `ANTHROPIC_API_KEY` → your Anthropic API key
-   - `JWT_SECRET` → any random string (e.g. `openssl rand -hex 32`)
-5. Deploy → wait for health check to pass
-6. Copy the Render URL: `https://ivoire-data-backend.onrender.com`
-
 ### Step 2 — Deploy frontend to Vercel
 
-1. Go to [vercel.com](https://vercel.com) → New Project
-2. Import `Ano2225/technical-test-Liwaza`
-3. Set **Root Directory** to `packages/frontend`
-4. Add environment variable:
-   - `VITE_API_URL` → your Render backend URL from Step 1
-5. Deploy → copy the Vercel URL: `https://ivoire-data-assistant.vercel.app`
 
 ### Step 3 — Lock CORS (optional but recommended)
 
@@ -224,23 +209,24 @@ Then redeploy the backend.
 ```bash
 cd packages/mcp-server
 .venv/bin/pytest tests/ -v
-# 9 tests — all World Bank API calls mocked
+# 14 tests, all passing
 ```
 
 ### Test strategy
 
+Tests focus on **logic**, not data. The question is not "does the World Bank return the right GDP value" — it is "does the tool behave correctly when given valid input, invalid input, or a failing API".
+
 **What is tested:**
-- All 5 tool functions: success path, 404, network error, empty data, null values
-- World Bank API calls are mocked with `pytest-asyncio` + `unittest.mock.patch`
+
+- **Input validation** — Pydantic models enforce rules: `country_code` is auto-uppercased, `keyword` is stripped, `per_page` is clamped within bounds, empty `indicator_id` is rejected. These run with zero network calls.
+- **Error handling paths** — httpx is mocked to raise `HTTPStatusError(404)` or `ConnectError`. Tests assert the tool returns a structured `{"error": "...", "code": 404/503}` dict — not an exception.
+- **Data invariants** — null data points (years with no World Bank data) must be preserved as `null` in the output, not dropped. Tested directly on `_indicator_base.fetch_indicator`.
+- **Auth logic** — JWT create → verify roundtrip; invalid token raises HTTP 401.
 
 **What is not tested:**
-- The Claude agentic loop (`llm.py`) — would require a live Anthropic API key and adds cost
-- Frontend components — Vite build + TypeScript strict mode catches type errors at build time
-- Integration tests (end-to-end) — covered manually with a running server
-
-**Why mock the World Bank API in tests:**
-The World Bank API is external, rate-limited, and can return varying data over time.
-Mocking ensures tests are deterministic, fast, and runnable in CI without network access.
+- The Claude agentic loop (`llm.py`) — requires a live Anthropic API key and incurs cost
+- Frontend components — TypeScript strict mode + `npm run build` catches type errors at build time
+- End-to-end — covered manually against the running server
 
 ---
 
