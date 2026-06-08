@@ -26,7 +26,7 @@ function TimeSeriesCard({ data }: { data: TimeSeriesData }) {
 
       <div className="flex items-end justify-between mt-3">
         <div>
-          <p className="text-2xl font-semibold text-[#F5F5F5]">
+          <p className="text-lg sm:text-2xl font-semibold text-[#F5F5F5]">
             {formatValue(latest.value as number, data.indicator.name)}
           </p>
           <p className="text-xs text-muted mt-0.5">Données {latest.year}</p>

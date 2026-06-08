@@ -7,9 +7,15 @@ export interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
-  tool_called?: string
-  data?: ToolData
+  tool_calls?: ToolCallRecord[]
+  isError?: boolean
   timestamp: string
+}
+
+export interface ToolCallRecord {
+  tool: string
+  input: Record<string, unknown>
+  result: ToolData
 }
 
 export type ToolData =
@@ -90,7 +96,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
 
 interface ApiChatResponse {
   reply: string
-  tool_calls: Array<{ tool: string; input: Record<string, unknown>; result: ToolData }>
+  tool_calls: ToolCallRecord[]
 }
 
 export async function sendMessage(
@@ -98,7 +104,9 @@ export async function sendMessage(
   history: ChatMessage[],
 ): Promise<ChatMessage> {
   const messages = [
-    ...history.map((m) => ({ role: m.role, content: m.content })),
+    ...history
+      .filter((m) => !m.isError)
+      .map((m) => ({ role: m.role, content: m.content })),
     { role: 'user' as const, content: message },
   ]
 
@@ -114,14 +122,12 @@ export async function sendMessage(
   }
 
   const data = await res.json() as ApiChatResponse
-  const firstCall = data.tool_calls?.[0]
 
   return {
     id: crypto.randomUUID(),
     role: 'assistant',
     content: data.reply,
-    tool_called: firstCall?.tool,
-    data: firstCall?.result,
+    tool_calls: data.tool_calls?.length ? data.tool_calls : undefined,
     timestamp: new Date().toISOString(),
   }
 }
@@ -131,6 +137,16 @@ export function makeUserMessage(content: string): ChatMessage {
     id: crypto.randomUUID(),
     role: 'user',
     content,
+    timestamp: new Date().toISOString(),
+  }
+}
+
+export function makeErrorMessage(error: string): ChatMessage {
+  return {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: error,
+    isError: true,
     timestamp: new Date().toISOString(),
   }
 }

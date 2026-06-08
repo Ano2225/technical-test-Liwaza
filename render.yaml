@@ -15,4 +15,4 @@ services:
       - key: JWT_EXPIRY_HOURS
         value: 24
       - key: ALLOWED_ORIGINS
-        value: "*"
+        value: "https://technical-test-liwaza.vercel.app,http://localhost:5173,http://localhost:80"
