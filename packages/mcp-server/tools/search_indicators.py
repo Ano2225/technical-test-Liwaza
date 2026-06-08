@@ -92,9 +92,9 @@ async def search_indicators(
     logger.info("search_indicators returned %d results in %.2fs", len(indicators), elapsed)
 
     return {
-        "total": meta.get("total", len(indicators)),
-        "per_page": meta.get("per_page", inp.per_page),
-        "page": meta.get("page", inp.page),
-        "pages": meta.get("pages", 1),
+        "total":    int(meta.get("total",    len(indicators))),
+        "per_page": int(meta.get("per_page", inp.per_page)),
+        "page":     int(meta.get("page",     inp.page)),
+        "pages":    int(meta.get("pages",    1)),
         "indicators": indicators,
     }

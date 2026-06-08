@@ -84,9 +84,9 @@ async def fetch_indicator(
 
     return {
         "indicator": indicator_meta,
-        "total": meta.get("total", len(data_points)),
-        "per_page": meta.get("per_page", req.per_page),
-        "page": meta.get("page", req.page),
-        "pages": meta.get("pages", 1),
+        "total":    int(meta.get("total",    len(data_points))),
+        "per_page": int(meta.get("per_page", req.per_page)),
+        "page":     int(meta.get("page",     req.page)),
+        "pages":    int(meta.get("pages",    1)),
         "data": data_points,
     }

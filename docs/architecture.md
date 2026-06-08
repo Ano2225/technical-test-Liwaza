@@ -429,14 +429,48 @@ reduces LLM costs by 60–70%.
 |---|---|
 | `ANTHROPIC_API_KEY` exposure | Never in frontend; injected as Render env var at runtime |
 | JWT forgery | `HS256` with `JWT_SECRET` env var (minimum 32 chars recommended) |
-| CORS misconfiguration | `ALLOWED_ORIGINS` env var; default `*` only acceptable for public demo |
+| CORS misconfiguration | `ALLOWED_ORIGINS` must list exact origins — `*` is incompatible with `allow_credentials=True` and causes browser rejection; `render.yaml` sets the Vercel URL explicitly |
 | World Bank API rate limiting | No auth required; ~500 req/min per IP — add caching before scaling |
 | Prompt injection via user input | Claude system prompt scopes responses to World Bank / CI data |
 | Dependency vulnerabilities | `pip audit` in CI; `npm audit` in CI |
 
 ---
 
-## 5. Component Dependency Map
+## 5. Frontend UX Features
+
+### Implemented
+
+| Feature | Component | Description |
+|---|---|---|
+| Conversational interface | `Chat.tsx` | Full message history sent to Claude on every turn |
+| Conversation history | `Chat.tsx` | React state; visible exchange counter in header |
+| Tool execution visibility | `ToolCallBadge.tsx` | Expandable badge shows tool name + parameters sent |
+| Structured outputs | `IndicatorCard.tsx` | TimeSeriesCard (sparkline + trend), CountryCard, SearchCard |
+| Error handling | `ChatBubble.tsx` + `api.ts` | Inline error bubbles in the conversation flow, not a banner |
+| FR/EN language switcher | `lib/LanguageContext.tsx` + `lib/i18n.ts` | Persisted in `localStorage`, default: English |
+| Help modal | `HelpModal.tsx` | Explains all 5 tools with clickable example questions |
+| Copy message | `ChatBubble.tsx` | Clipboard copy on hover, green checkmark feedback |
+| New conversation | `Chat.tsx` | Clears messages + refocuses input |
+| Loading status | `LoadingBubble.tsx` | Cycles through 4 status strings every 2.5s |
+| Mobile responsive | All components | `text-xs sm:text-sm`, reduced padding, same-height input/button |
+
+### i18n Architecture
+
+```
+lib/i18n.ts              ← all FR/EN strings in one typed object
+lib/LanguageContext.tsx  ← React context + useLang() hook + localStorage
+App.tsx                  ← <LanguageProvider> wraps the tree
+components/*             ← consume useLang() — no prop drilling
+lib/formatters.ts        ← formatValue(value, name, lang) — number locale + units
+```
+
+All static UI strings, tool names, parameter labels, indicator card labels, number formatting
+(`fr-FR` / `en-US`), and unit suffixes (`ans` / `yrs`, `Mrd` / `B`) respond to the language toggle.
+AI responses follow the user's message language automatically (Claude system prompt).
+
+---
+
+## 6. Component Dependency Map
 
 ```
 packages/
@@ -450,19 +484,23 @@ packages/
 │
 └── frontend/
     ├── src/
-    │   ├── App.tsx       ← root, mounts <Chat />
+    │   ├── App.tsx       ← root, wraps <LanguageProvider><Chat />
     │   ├── components/
-    │   │   ├── Chat.tsx          ← state, input, message list
-    │   │   ├── ChatBubble.tsx    ← per-message renderer
-    │   │   ├── EmptyState.tsx    ← suggestion grid (initial view)
-    │   │   ├── IndicatorCard.tsx ← structured data cards
+    │   │   ├── Chat.tsx          ← state, input, FR/EN toggle, help button
+    │   │   ├── ChatBubble.tsx    ← per-message renderer + copy button
+    │   │   ├── EmptyState.tsx    ← i18n suggestion grid (initial view)
+    │   │   ├── HelpModal.tsx     ← tool documentation panel (i18n)
+    │   │   ├── IndicatorCard.tsx ← structured data cards (i18n + lang-aware formatting)
+    │   │   ├── ToolCallBadge.tsx ← expandable tool execution badge (i18n)
     │   │   └── ui/
     │   │       ├── DataCard.tsx      ← base card wrapper
     │   │       ├── LogoCircle.tsx    ← brand avatar (sm/lg)
-    │   │       ├── LoadingBubble.tsx ← typing dots animation
+    │   │       ├── LoadingBubble.tsx ← typing dots + cycling status text
     │   │       └── Sparkline.tsx     ← SVG mini-chart
     │   └── lib/
-    │       ├── api.ts        ← HTTP client, JWT management
-    │       └── formatters.ts ← formatValue(), calcTrend()
+    │       ├── api.ts              ← HTTP client, JWT management, ToolCallRecord type
+    │       ├── formatters.ts       ← formatValue(value, name, lang), calcTrend()
+    │       ├── i18n.ts             ← FR/EN translation strings (typed)
+    │       └── LanguageContext.tsx ← React context, useLang() hook, localStorage
     └── public/
 ```

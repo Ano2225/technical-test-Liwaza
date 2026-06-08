@@ -13,12 +13,25 @@ Users interact with a conversational chat interface in French or English.
 The system understands natural language requests, identifies the appropriate data tool,
 fetches real data from the World Bank API, and returns structured, readable results.
 
+**Key features:**
+- Conversational chat with persistent history (full context sent to Claude on each turn)
+- FR/EN language switcher (persisted in `localStorage`, default: English)
+- Help panel documenting all 5 tools with clickable example questions
+- Expandable tool execution badges — shows which World Bank query was made and with what parameters
+- All tool calls rendered per response (not just the first)
+- Structured data cards: sparkline chart, trend arrow, latest value
+- Copy-to-clipboard on every assistant message
+- Inline error messages in the conversation flow
+- Cycling loading status ("Fetching data…", "World Bank API…", …)
+- "New conversation" button to clear context
+- Fully responsive (mobile-first)
+
 **Example queries:**
-- "Quel est le PIB de la Côte d'Ivoire ?"
-- "Montre-moi le taux d'alphabétisation"
-- "Quelle est l'espérance de vie ?"
-- "Taux d'inflation ces 5 dernières années"
-- "Cherche des indicateurs sur la pauvreté"
+- "What is the GDP of Côte d'Ivoire?"
+- "Show me the adult literacy rate"
+- "What is the life expectancy?"
+- "Inflation rate over the last 5 years"
+- "Search for poverty indicators"
 
 ---
 
@@ -47,7 +60,8 @@ See [docs/architecture.md](docs/architecture.md) for the full architecture decis
 |----------|---------------------------------------------------|
 | Frontend | React 18 + Vite + TypeScript + Tailwind CSS       |
 | Icons    | lucide-react                                      |
-| Fonts    | Instrument Serif + DM Sans (Google Fonts)         |
+| Fonts    | Inter + Instrument Serif (Google Fonts)           |
+| i18n     | Custom React context — English (default) + French |
 | Backend  | Python 3.12 + FastAPI + fastmcp                   |
 | Config   | pydantic-settings (auto-loads `.env`)             |
 | LLM      | Claude Sonnet 4.6 (tool_use agentic loop)         |
@@ -71,8 +85,19 @@ ivoire-data-assistant/
 │   │   └── tests/                # 9 unit tests
 │   └── frontend/
 │       ├── src/
-│       │   ├── components/       # Chat, ChatBubble, ToolCallBadge, IndicatorCard
-│       │   └── lib/api.ts        # JWT fetch + /chat calls
+│       │   ├── components/
+│       │   │   ├── Chat.tsx            # Layout, state, FR/EN toggle
+│       │   │   ├── ChatBubble.tsx      # Message renderer + copy button
+│       │   │   ├── EmptyState.tsx      # Suggestion grid (i18n)
+│       │   │   ├── HelpModal.tsx       # Tool documentation panel
+│       │   │   ├── IndicatorCard.tsx   # Structured data cards
+│       │   │   ├── ToolCallBadge.tsx   # Expandable tool execution badge
+│       │   │   └── ui/                 # DataCard, LoadingBubble, LogoCircle, Sparkline
+│       │   └── lib/
+│       │       ├── api.ts              # JWT fetch + /chat calls
+│       │       ├── formatters.ts       # formatValue, calcTrend (lang-aware)
+│       │       ├── i18n.ts             # FR/EN translation strings
+│       │       └── LanguageContext.tsx # Language context + useLang hook
 │       └── vercel.json
 ├── docs/
 │   ├── architecture.md
@@ -143,8 +168,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 JWT_SECRET=your-random-secret
 JWT_ALGORITHM=HS256
 JWT_EXPIRY_HOURS=24
-ALLOWED_ORIGINS=*
+ALLOWED_ORIGINS=https://your-app.vercel.app,http://localhost:5173
 ```
+
+> `ALLOWED_ORIGINS` must list exact origins — wildcards (`*`) are incompatible with
+> `allow_credentials=True` and will cause CORS errors in the browser.
 
 ### Frontend (`packages/frontend/.env`)
 
@@ -208,14 +236,16 @@ Claude selects which tool to call automatically based on the user's question.
    - `VITE_API_URL` → your Render backend URL from Step 1
 5. Deploy → copy the Vercel URL: `https://ivoire-data-assistant.vercel.app`
 
-### Step 3 — Lock CORS (optional but recommended)
+### Step 3 — Lock CORS
 
-In Render dashboard, set:
+`render.yaml` already sets `ALLOWED_ORIGINS` to the Vercel URL.
+If your Vercel URL differs, update it in the Render dashboard under **Environment**:
+
 ```
-ALLOWED_ORIGINS=https://ivoire-data-assistant.vercel.app
+ALLOWED_ORIGINS=https://your-app.vercel.app,http://localhost:5173
 ```
 
-Then redeploy the backend.
+Then trigger a manual redeploy.
 
 ---
 
@@ -224,23 +254,18 @@ Then redeploy the backend.
 ```bash
 cd packages/mcp-server
 .venv/bin/pytest tests/ -v
-# 9 tests — all World Bank API calls mocked
+# 22 tests — live World Bank API (no mocks)
 ```
 
 ### Test strategy
 
-**What is tested:**
-- All 5 tool functions: success path, 404, network error, empty data, null values
-- World Bank API calls are mocked with `pytest-asyncio` + `unittest.mock.patch`
+**What is tested (22 tests, no mocks):**
+- WB API reachability — confirms the live endpoint is up before running any tool test
+- All 5 tool functions × (success path, invalid/empty data, null values, network error)
+- Pagination metadata fields (`total`, `per_page`, `page`, `pages`) cast to correct types
+- Network-error paths use `monkeypatch` to point `WB_BASE` at an unreachable host —
+  a real `ConnectError` fires without any response fixture
 
-**What is not tested:**
-- The Claude agentic loop (`llm.py`) — would require a live Anthropic API key and adds cost
-- Frontend components — Vite build + TypeScript strict mode catches type errors at build time
-- Integration tests (end-to-end) — covered manually with a running server
-
-**Why mock the World Bank API in tests:**
-The World Bank API is external, rate-limited, and can return varying data over time.
-Mocking ensures tests are deterministic, fast, and runnable in CI without network access.
 
 ---
 
